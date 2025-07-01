@@ -11,6 +11,6 @@ add_subdirectory(vendored/SDL EXCLUDE_FROM_ALL)
 add_executable(penta main.cpp led_control.cpp)
 
 # Link against SDL3 from the vendored tree
-target_link_libraries(penta PRIVATE SDL3::SDL3)
+target_link_libraries(penta PRIVATE SDL3::SDL3 SDL3::SDL3_test)
 
 target_compile_features(penta PRIVATE cxx_std_17)
