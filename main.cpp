@@ -2,8 +2,7 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
-
-const int LED_COUNT = 5;
+#include "led_control.h"
 const int LED_RADIUS = 15;
 const int PENTAGRAM_RADIUS = 150;
 const int DISPLAY_SIZE = 400;
@@ -50,7 +49,6 @@ int main(int argc, char** argv) {
     }
 
     auto ledPositions = pentagramPoints(DISPLAY_SIZE/2.0f, DISPLAY_SIZE/2.0f, PENTAGRAM_RADIUS);
-    std::array<SDL_Color, LED_COUNT> ledColors;
     ledColors.fill({0,0,0,255});
 
     auto btnPositions = pentagramPoints(PANEL_WIDTH/2.0f, PANEL_WIDTH/4.0f, PENTAGRAM_RADIUS/2.0f);
@@ -59,11 +57,11 @@ int main(int argc, char** argv) {
         buttons[i].rect = { (int)btnPositions[i].x - 30, (int)btnPositions[i].y - 15, 60,30 };
     }
     Button selectAllBtn{ {PANEL_WIDTH/2 - 50, (int)(PANEL_WIDTH/2.0f), 100,30} };
-    SDL_Rect hueSlider{50, PANEL_WIDTH/2 + 50, PANEL_WIDTH-100, 20};
+    SDL_Rect colorSlider{50, PANEL_WIDTH/2 + 50, PANEL_WIDTH-100, 20};
     SDL_Rect brightSlider{50, PANEL_WIDTH/2 + 100, PANEL_WIDTH-100, 20};
     Button applyBtn{ {PANEL_WIDTH/2 - 120, PANEL_WIDTH/2 + 150, 100,30} };
     Button resetBtn{ {PANEL_WIDTH/2 + 20, PANEL_WIDTH/2 + 150, 100,30} };
-    int hue = 0;
+    int color = 0;
     int brightness = 100;
 
     bool running = true;
@@ -85,24 +83,25 @@ int main(int argc, char** argv) {
                     float sat = 1.0f; // fixed
                     for(int i=0;i<LED_COUNT;++i) {
                         if(buttons[i].down) {
-                            float angle = hue * M_PI/180.0f;
+                            float angle = color * M_PI/180.0f;
                             float r = 0.5f*(std::sin(angle)+1);
                             float g = 0.5f*(std::sin(angle+2*M_PI/3)+1);
                             float b = 0.5f*(std::sin(angle+4*M_PI/3)+1);
-                            ledColors[i] = { Uint8(r*brightness*2.55f), Uint8(g*brightness*2.55f), Uint8(b*brightness*2.55f), 255 };
+                            SDL_Color base{ Uint8(r*255), Uint8(g*255), Uint8(b*255), 255 };
+                            updateLedColor(i, base, brightness);
                         }
                     }
                 }
                 if(SDL_PointInRect(&click, &resetBtn.rect)) {
-                    hue = 0; brightness = 100;
+                    color = 0; brightness = 100;
                     for(auto &b: buttons) { b.down = false; }
                     ledColors.fill({0,0,0,255});
                 }
             }
             if(e.type == SDL_EVENT_MOUSE_MOTION && e.motion.state & SDL_BUTTON_LMASK && e.motion.windowID == SDL_GetWindowID(panelWin)) {
                 int mx = e.motion.x;
-                if(mx >= hueSlider.x && mx <= hueSlider.x + hueSlider.w)
-                    hue = int( (mx - hueSlider.x) * 359 / hueSlider.w );
+                if(mx >= colorSlider.x && mx <= colorSlider.x + colorSlider.w)
+                    color = int( (mx - colorSlider.x) * 359 / colorSlider.w );
                 if(mx >= brightSlider.x && mx <= brightSlider.x + brightSlider.w)
                     brightness = int( (mx - brightSlider.x) * 100 / brightSlider.w );
             }
@@ -146,19 +145,19 @@ int main(int argc, char** argv) {
                             (float)applyBtn.rect.w,(float)applyBtn.rect.h};
         SDL_FRect resetRect{(float)resetBtn.rect.x,(float)resetBtn.rect.y,
                             (float)resetBtn.rect.w,(float)resetBtn.rect.h};
-        SDL_FRect hueRect{(float)hueSlider.x,(float)hueSlider.y,
-                          (float)hueSlider.w,(float)hueSlider.h};
+        SDL_FRect colorRect{(float)colorSlider.x,(float)colorSlider.y,
+                            (float)colorSlider.w,(float)colorSlider.h};
         SDL_FRect brightRect{(float)brightSlider.x,(float)brightSlider.y,
                              (float)brightSlider.w,(float)brightSlider.h};
         SDL_RenderRect(panelRen,&selRect);
         SDL_RenderRect(panelRen,&applyRect);
         SDL_RenderRect(panelRen,&resetRect);
-        SDL_RenderRect(panelRen,&hueRect);
+        SDL_RenderRect(panelRen,&colorRect);
         SDL_RenderRect(panelRen,&brightRect);
         // slider indicators
-        SDL_FRect huePos{(float)(hueSlider.x + hue * hueSlider.w / 359 - 5), (float)hueSlider.y - 5.f, 10.f, (float)hueSlider.h + 10.f};
+        SDL_FRect colorPos{(float)(colorSlider.x + color * colorSlider.w / 359 - 5), (float)colorSlider.y - 5.f, 10.f, (float)colorSlider.h + 10.f};
         SDL_FRect brightPos{(float)(brightSlider.x + brightness * brightSlider.w / 100 - 5), (float)brightSlider.y - 5.f, 10.f, (float)brightSlider.h + 10.f};
-        SDL_RenderFillRect(panelRen,&huePos);
+        SDL_RenderFillRect(panelRen,&colorPos);
         SDL_RenderFillRect(panelRen,&brightPos);
         SDL_RenderPresent(panelRen);
         SDL_Delay(16);

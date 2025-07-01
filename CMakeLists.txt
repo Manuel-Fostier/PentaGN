@@ -8,7 +8,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIGURATION>")
 # Use the vendored SDL source tree if present
 add_subdirectory(vendored/SDL EXCLUDE_FROM_ALL)
 
-add_executable(penta main.cpp)
+add_executable(penta main.cpp led_control.cpp)
 
 # Link against SDL3 from the vendored tree
 target_link_libraries(penta PRIVATE SDL3::SDL3)
