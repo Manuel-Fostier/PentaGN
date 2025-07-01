@@ -1,4 +1,5 @@
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_test_font.h>
 #include <array>
 #include <cmath>
 #include <cstdio>
@@ -48,6 +49,8 @@ int main(int argc, char** argv) {
         SDL_Quit();
         return 1;
     }
+
+    FONT_CHARACTER_SIZE = 12;
 
     auto ledPositions = pentagramPoints(DISPLAY_SIZE/2.0f, DISPLAY_SIZE/2.0f, PENTAGRAM_RADIUS);
     std::array<SDL_Color, LED_COUNT> ledColors;
@@ -153,13 +156,40 @@ int main(int argc, char** argv) {
         SDL_RenderRect(panelRen,&selRect);
         SDL_RenderRect(panelRen,&applyRect);
         SDL_RenderRect(panelRen,&resetRect);
+
+        /* draw hue gradient */
+        for(int i=0;i<hueSlider.w;i++){
+            float ang = (float)i / hueSlider.w * 359.0f * M_PI / 180.0f;
+            float r = 0.5f*(std::sin(ang)+1.0f);
+            float g = 0.5f*(std::sin(ang+2*M_PI/3)+1.0f);
+            float b = 0.5f*(std::sin(ang+4*M_PI/3)+1.0f);
+            SDL_SetRenderDrawColor(panelRen, Uint8(r*255), Uint8(g*255), Uint8(b*255), 255);
+            SDL_RenderLine(panelRen, hueSlider.x + i, hueSlider.y, hueSlider.x + i, hueSlider.y + hueSlider.h);
+        }
         SDL_RenderRect(panelRen,&hueRect);
+
+        /* brightness scale background */
+        for(int i=0;i<brightSlider.w;i++){
+            Uint8 val = Uint8(i * 255 / brightSlider.w);
+            SDL_SetRenderDrawColor(panelRen,val,val,val,255);
+            SDL_RenderLine(panelRen, brightSlider.x + i, brightSlider.y, brightSlider.x + i, brightSlider.y + brightSlider.h);
+        }
         SDL_RenderRect(panelRen,&brightRect);
         // slider indicators
         SDL_FRect huePos{(float)(hueSlider.x + hue * hueSlider.w / 359 - 5), (float)hueSlider.y - 5.f, 10.f, (float)hueSlider.h + 10.f};
         SDL_FRect brightPos{(float)(brightSlider.x + brightness * brightSlider.w / 100 - 5), (float)brightSlider.y - 5.f, 10.f, (float)brightSlider.h + 10.f};
         SDL_RenderFillRect(panelRen,&huePos);
         SDL_RenderFillRect(panelRen,&brightPos);
+
+        SDL_SetRenderDrawColor(panelRen,0,0,0,255);
+        SDLTest_DrawString(panelRen, selRect.x + 5, selRect.y + 5, "Select All");
+        SDLTest_DrawString(panelRen, applyRect.x + 5, applyRect.y + 5, "Apply");
+        SDLTest_DrawString(panelRen, resetRect.x + 5, resetRect.y + 5, "Reset");
+        SDLTest_DrawString(panelRen, hueRect.x, hueRect.y - FONT_CHARACTER_SIZE - 2, "Hue");
+        SDLTest_DrawString(panelRen, brightRect.x, brightRect.y - FONT_CHARACTER_SIZE - 2, "Brightness");
+        SDLTest_DrawString(panelRen, brightRect.x, brightRect.y + brightRect.h + 2, "0");
+        SDLTest_DrawString(panelRen, brightRect.x + brightRect.w / 2 - FONT_CHARACTER_SIZE, brightRect.y + brightRect.h + 2, "50");
+        SDLTest_DrawString(panelRen, brightRect.x + brightRect.w - FONT_CHARACTER_SIZE*3, brightRect.y + brightRect.h + 2, "100");
         SDL_RenderPresent(panelRen);
         SDL_Delay(16);
     }
