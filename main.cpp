@@ -32,17 +32,17 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    SDL_Window* displayWin = SDL_CreateWindow("LEDs", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        DISPLAY_SIZE, DISPLAY_SIZE, SDL_WINDOW_SHOWN);
-    SDL_Window* panelWin = SDL_CreateWindow("Control", SDL_WINDOWPOS_CENTERED + DISPLAY_SIZE,
-        SDL_WINDOWPOS_CENTERED, PANEL_WIDTH, PANEL_HEIGHT, SDL_WINDOW_SHOWN);
+    SDL_Window* displayWin = SDL_CreateWindow("LEDs", DISPLAY_SIZE, DISPLAY_SIZE, 0);
+    SDL_Window* panelWin = SDL_CreateWindow("Control", PANEL_WIDTH, PANEL_HEIGHT, 0);
+    SDL_SetWindowPosition(displayWin, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+    SDL_SetWindowPosition(panelWin, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
     if (!displayWin || !panelWin) {
         std::fprintf(stderr, "Window creation failed: %s\n", SDL_GetError());
         SDL_Quit();
         return 1;
     }
-    SDL_Renderer* displayRen = SDL_CreateRenderer(displayWin, -1, SDL_RENDERER_ACCELERATED);
-    SDL_Renderer* panelRen = SDL_CreateRenderer(panelWin, -1, SDL_RENDERER_ACCELERATED);
+    SDL_Renderer* displayRen = SDL_CreateRenderer(displayWin, nullptr);
+    SDL_Renderer* panelRen = SDL_CreateRenderer(panelWin, nullptr);
     if (!displayRen || !panelRen) {
         std::fprintf(stderr, "Renderer creation failed: %s\n", SDL_GetError());
         SDL_Quit();
@@ -70,17 +70,18 @@ int main(int argc, char** argv) {
     while(running) {
         SDL_Event e;
         while(SDL_PollEvent(&e)) {
-            if (e.type == SDL_QUIT) running = false;
-            if (e.type == SDL_MOUSEBUTTONDOWN && e.button.windowID == SDL_GetWindowID(panelWin)) {
+            if (e.type == SDL_EVENT_QUIT) running = false;
+            if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN && e.button.windowID == SDL_GetWindowID(panelWin)) {
                 int mx = e.button.x; int my = e.button.y;
+                SDL_Point click{mx, my};
                 for(int i=0;i<LED_COUNT;++i) {
-                    if(SDL_PointInRect(&SDL_Point{mx,my}, &buttons[i].rect))
+                    if(SDL_PointInRect(&click, &buttons[i].rect))
                         buttons[i].down = !buttons[i].down;
                 }
-                if(SDL_PointInRect(&SDL_Point{mx,my}, &selectAllBtn.rect)) {
+                if(SDL_PointInRect(&click, &selectAllBtn.rect)) {
                     for(auto &b:buttons) b.down = true;
                 }
-                if(SDL_PointInRect(&SDL_Point{mx,my}, &applyBtn.rect)) {
+                if(SDL_PointInRect(&click, &applyBtn.rect)) {
                     float sat = 1.0f; // fixed
                     for(int i=0;i<LED_COUNT;++i) {
                         if(buttons[i].down) {
@@ -92,13 +93,13 @@ int main(int argc, char** argv) {
                         }
                     }
                 }
-                if(SDL_PointInRect(&SDL_Point{mx,my}, &resetBtn.rect)) {
+                if(SDL_PointInRect(&click, &resetBtn.rect)) {
                     hue = 0; brightness = 100;
                     for(auto &b: buttons) { b.down = false; }
                     ledColors.fill({0,0,0,255});
                 }
             }
-            if(e.type == SDL_MOUSEMOTION && e.motion.state & SDL_BUTTON_LMASK && e.motion.windowID == SDL_GetWindowID(panelWin)) {
+            if(e.type == SDL_EVENT_MOUSE_MOTION && e.motion.state & SDL_BUTTON_LMASK && e.motion.windowID == SDL_GetWindowID(panelWin)) {
                 int mx = e.motion.x;
                 if(mx >= hueSlider.x && mx <= hueSlider.x + hueSlider.w)
                     hue = int( (mx - hueSlider.x) * 359 / hueSlider.w );
@@ -112,15 +113,16 @@ int main(int argc, char** argv) {
         // pentagram lines
         for(int i=0;i<LED_COUNT;i++){
             int j=(i+2)%LED_COUNT;
-            SDL_RenderDrawLine(displayRen,(int)ledPositions[i].x,(int)ledPositions[i].y,
-                (int)ledPositions[j].x,(int)ledPositions[j].y);
+            SDL_RenderLine(displayRen,
+                ledPositions[i].x, ledPositions[i].y,
+                ledPositions[j].x, ledPositions[j].y);
         }
         for(int i=0;i<LED_COUNT;i++){
             SDL_SetRenderDrawColor(displayRen,ledColors[i].r,ledColors[i].g,ledColors[i].b,255);
             for(int dx=-LED_RADIUS;dx<=LED_RADIUS;dx++){
                 for(int dy=-LED_RADIUS;dy<=LED_RADIUS;dy++){
                     if(dx*dx+dy*dy<=LED_RADIUS*LED_RADIUS)
-                        SDL_RenderDrawPoint(displayRen,(int)ledPositions[i].x+dx,(int)ledPositions[i].y+dy);
+                        SDL_RenderPoint(displayRen, ledPositions[i].x + dx, ledPositions[i].y + dy);
                 }
             }
         }
@@ -131,20 +133,31 @@ int main(int argc, char** argv) {
         // draw buttons
         SDL_SetRenderDrawColor(panelRen,0,0,0,255);
         for(int i=0;i<LED_COUNT;++i){
-            SDL_Rect r = buttons[i].rect;
-            SDL_RenderDrawRect(panelRen,&r);
+            SDL_FRect r{(float)buttons[i].rect.x, (float)buttons[i].rect.y,
+                        (float)buttons[i].rect.w, (float)buttons[i].rect.h};
+            SDL_RenderRect(panelRen,&r);
             if(buttons[i].down){
                 SDL_RenderFillRect(panelRen,&r);
             }
         }
-        SDL_RenderDrawRect(panelRen,&selectAllBtn.rect);
-        SDL_RenderDrawRect(panelRen,&applyBtn.rect);
-        SDL_RenderDrawRect(panelRen,&resetBtn.rect);
-        SDL_RenderDrawRect(panelRen,&hueSlider);
-        SDL_RenderDrawRect(panelRen,&brightSlider);
+        SDL_FRect selRect{(float)selectAllBtn.rect.x,(float)selectAllBtn.rect.y,
+                          (float)selectAllBtn.rect.w,(float)selectAllBtn.rect.h};
+        SDL_FRect applyRect{(float)applyBtn.rect.x,(float)applyBtn.rect.y,
+                            (float)applyBtn.rect.w,(float)applyBtn.rect.h};
+        SDL_FRect resetRect{(float)resetBtn.rect.x,(float)resetBtn.rect.y,
+                            (float)resetBtn.rect.w,(float)resetBtn.rect.h};
+        SDL_FRect hueRect{(float)hueSlider.x,(float)hueSlider.y,
+                          (float)hueSlider.w,(float)hueSlider.h};
+        SDL_FRect brightRect{(float)brightSlider.x,(float)brightSlider.y,
+                             (float)brightSlider.w,(float)brightSlider.h};
+        SDL_RenderRect(panelRen,&selRect);
+        SDL_RenderRect(panelRen,&applyRect);
+        SDL_RenderRect(panelRen,&resetRect);
+        SDL_RenderRect(panelRen,&hueRect);
+        SDL_RenderRect(panelRen,&brightRect);
         // slider indicators
-        SDL_Rect huePos{hueSlider.x + hue * hueSlider.w / 359 - 5, hueSlider.y-5,10,hueSlider.h+10};
-        SDL_Rect brightPos{brightSlider.x + brightness * brightSlider.w / 100 -5, brightSlider.y-5,10,brightSlider.h+10};
+        SDL_FRect huePos{(float)(hueSlider.x + hue * hueSlider.w / 359 - 5), (float)hueSlider.y - 5.f, 10.f, (float)hueSlider.h + 10.f};
+        SDL_FRect brightPos{(float)(brightSlider.x + brightness * brightSlider.w / 100 - 5), (float)brightSlider.y - 5.f, 10.f, (float)brightSlider.h + 10.f};
         SDL_RenderFillRect(panelRen,&huePos);
         SDL_RenderFillRect(panelRen,&brightPos);
         SDL_RenderPresent(panelRen);
