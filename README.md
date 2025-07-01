@@ -4,7 +4,7 @@ This project demonstrates a simple C++ application using SDL3.
 It shows two windows side by side:
 
 - The left window displays a pentagram with five LED circles.
-- The right window acts as a control panel where LEDs can be selected and their hue and brightness changed.
+- The right window acts as a control panel where LEDs can be selected and their color and brightness changed.
 
 ## Requirements
 
